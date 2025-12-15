@@ -2,8 +2,8 @@ import asyncio
 import aiohttp
 from aiogram import Bot, Dispatcher
 
-BOT_TOKEN = "ВСТАВЬ_ТОКЕН_БОТА"
-CHAT_ID = 123456789  # ← твой chat_id
+BOT_TOKEN = "8577361820:AAH-6wct2IpYn1aSryaDaT1HnFK3rQ-va4c"
+CHAT_ID = 785649597  # ← твой chat_id
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
@@ -54,3 +54,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
