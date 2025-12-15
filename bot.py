@@ -1,103 +1,56 @@
 import asyncio
 import aiohttp
 from aiogram import Bot, Dispatcher
-from aiogram.types import Message
-from aiogram.filters import Command
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
 
-# ==========================
-# НАСТРОЙКИ
-# ==========================
-BOT_TOKEN = "8577361820:AAH-6wct2IpYn1aSryaDaT1HnFK3rQ-va4c"   # <-- вставь токен сюда
-SYMBOL = "SOLUSDT"
-CHECK_INTERVAL = 30  # секунд
-PRICE_DIFF_PERCENT = 0.2  # % изменения для уведомления
+BOT_TOKEN = "ВСТАВЬ_ТОКЕН_БОТА"
+CHAT_ID = 123456789  # ← твой chat_id
 
-# ==========================
-bot = Bot(
-    BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
-dp = Dispatcher()
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(bot)
+
+URL = "https://api.bybit.com/v5/market/tickers?category=spot&symbol=SOLUSDT"
 
 last_price = None
-chat_id_global = None
 
-
-# ==========================
-# BYBIT PRICE
-# ==========================
-async def get_price():
-    url = "https://api.bybit.com/v5/market/tickers"
-    params = {"category": "spot", "symbol": SYMBOL}
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as r:
-            data = await r.json()
-            return float(data["result"]["list"][0]["lastPrice"])
-
-
-# ==========================
-# PRICE WATCHER
-# ==========================
 async def price_watcher():
     global last_price
 
-    await asyncio.sleep(5)
-
     while True:
         try:
-            price = await get_price()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(URL) as r:
+                    data = await r.json()
+                    price = float(data["result"]["list"][0]["lastPrice"])
 
-            if last_price is not None and chat_id_global:
-                diff = ((price - last_price) / last_price) * 100
+            if last_price is None:
+                last_price = price
+                await bot.send_message(
+                    CHAT_ID,
+                    f"🚀 Бот запущен\nSOL = {price}$"
+                )
 
-                if abs(diff) >= PRICE_DIFF_PERCENT:
-                    emoji = "📈" if diff > 0 else "📉"
-                    await bot.send_message(
-                        chat_id_global,
-                        f"{emoji} <b>{SYMBOL}</b>\n"
-                        f"Цена: <b>{price}</b>\n"
-                        f"Изменение: <b>{diff:.2f}%</b>"
-                    )
+            elif price != last_price:
+                diff = price - last_price
+                emoji = "📈" if diff > 0 else "📉"
 
-            last_price = price
+                await bot.send_message(
+                    CHAT_ID,
+                    f"{emoji} SOL изменился\n"
+                    f"Было: {last_price}$\n"
+                    f"Стало: {price}$"
+                )
+
+                last_price = price
 
         except Exception as e:
             print("Ошибка:", e)
 
-        await asyncio.sleep(CHECK_INTERVAL)
+        await asyncio.sleep(60)  # проверка раз в минуту
 
 
-# ==========================
-# COMMANDS
-# ==========================
-@dp.message(Command("start"))
-async def start(msg: Message):
-    global chat_id_global
-    chat_id_global = msg.chat.id
-
-    await msg.answer(
-        "🤖 <b>Bybit SOL бот запущен</b>\n\n"
-        "Я буду следить за ценой <b>SOLUSDT</b>\n"
-        "и писать, если цена двигается 📈📉"
-    )
-
-
-@dp.message(Command("price"))
-async def price_cmd(msg: Message):
-    price = await get_price()
-    await msg.answer(f"💰 Цена <b>{SYMBOL}</b>: <b>{price}</b>")
-
-
-# ==========================
-# MAIN
-# ==========================
 async def main():
     asyncio.create_task(price_watcher())
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
